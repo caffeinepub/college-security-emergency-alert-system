@@ -152,7 +152,7 @@ export default function StudentDashboard({ profile }: Props) {
         className="relative h-44 md:h-56 flex items-end"
         style={{
           backgroundImage:
-            "url('/assets/generated/campus-hero.dim_1200x500.jpg')",
+            "url('/assets/uploads/3df64438-ad54-4fe0-8cf8-1a8a54442ae8-1.jpg')",
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}

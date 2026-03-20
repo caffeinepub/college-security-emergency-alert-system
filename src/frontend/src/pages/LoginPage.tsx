@@ -14,14 +14,10 @@ export default function LoginPage() {
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
         className="relative flex-1 flex flex-col justify-between p-8 md:p-12 text-white overflow-hidden"
-        style={{
-          background:
-            "linear-gradient(135deg, oklch(0.22 0.1 15) 0%, oklch(0.14 0.07 15) 50%, oklch(0.2 0.12 255) 100%)",
-        }}
       >
-        {/* Background image overlay */}
+        {/* College building background image */}
         <div
-          className="absolute inset-0 opacity-20"
+          className="absolute inset-0"
           style={{
             backgroundImage:
               "url('/assets/uploads/3df64438-ad54-4fe0-8cf8-1a8a54442ae8-1.jpg')",
@@ -29,9 +25,10 @@ export default function LoginPage() {
             backgroundPosition: "center",
           }}
         />
+        {/* Dark overlay for text readability */}
         <div
           className="absolute inset-0"
-          style={{ background: "rgba(0,0,0,0.35)" }}
+          style={{ background: "rgba(0,0,0,0.55)" }}
         />
 
         <div className="relative z-10">
