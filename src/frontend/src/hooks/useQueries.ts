@@ -25,7 +25,10 @@ export function useSaveProfile() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (profile: UserProfile) => actor!.saveCallerUserProfile(profile),
+    mutationFn: async (profile: UserProfile) => {
+      if (!actor) throw new Error("Not authenticated");
+      return actor.saveCallerUserProfile(profile);
+    },
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["userProfile"] }),
   });
@@ -56,8 +59,10 @@ export function useSubmitSOS() {
     mutationFn: ({
       location,
       message,
-    }: { location: string; message: string }) =>
-      actor!.submitSOSAlert(location, message),
+    }: { location: string; message: string }) => {
+      if (!actor) throw new Error("Not authenticated");
+      return actor.submitSOSAlert(location, message);
+    },
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["studentAlerts"] }),
   });
@@ -77,13 +82,15 @@ export function useSubmitReport() {
       location: string;
       description: string;
       photoBlobId: string | null;
-    }) =>
-      actor!.submitIncidentReport(
+    }) => {
+      if (!actor) throw new Error("Not authenticated");
+      return actor.submitIncidentReport(
         incidentType,
         location,
         description,
         photoBlobId,
-      ),
+      );
+    },
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["studentReports"] }),
   });
@@ -119,7 +126,10 @@ export function useUpdateAlertStatus() {
       user: Principal;
       alertIndex: bigint;
       newStatus: boolean;
-    }) => actor!.updateAlertStatus(user, alertIndex, newStatus),
+    }) => {
+      if (!actor) throw new Error("Not authenticated");
+      return actor.updateAlertStatus(user, alertIndex, newStatus);
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["allAlerts"] }),
   });
 }
@@ -128,8 +138,10 @@ export function useAssignAdminRole() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ user }: { user: Principal }) =>
-      actor!.assignCallerUserRole(user, "admin" as any),
+    mutationFn: ({ user }: { user: Principal }) => {
+      if (!actor) throw new Error("Not authenticated");
+      return actor.assignCallerUserRole(user, "admin" as any);
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["isAdmin"] }),
   });
 }

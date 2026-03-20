@@ -16,16 +16,18 @@ import { HttpAgent } from "@icp-sdk/core/agent";
 import {
   AlertTriangle,
   Bell,
+  ChevronRight,
   FileText,
-  Link as LinkIcon,
+  LayoutDashboard,
   Loader2,
   MapPin,
   Phone,
   Shield,
   Upload,
   User,
+  X,
 } from "lucide-react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import type { UserProfile } from "../backend";
@@ -42,14 +44,23 @@ import {
 import { StorageClient } from "../utils/StorageClient";
 import { formatTimestamp } from "../utils/helpers";
 
-type Tab = "home" | "dashboard" | "alerts" | "reports" | "contacts";
+type Page = "overview" | "sos" | "reports" | "contacts" | "profile";
 
 interface Props {
   profile: UserProfile | null;
 }
 
+const navItems: { page: Page; label: string; icon: React.ElementType }[] = [
+  { page: "overview", label: "Overview", icon: LayoutDashboard },
+  { page: "sos", label: "SOS Emergency", icon: AlertTriangle },
+  { page: "reports", label: "Incident Reports", icon: FileText },
+  { page: "contacts", label: "Emergency Contacts", icon: Phone },
+  { page: "profile", label: "My Profile", icon: User },
+];
+
 export default function StudentDashboard({ profile }: Props) {
-  const [activeTab, setActiveTab] = useState<Tab>("dashboard");
+  const [activePage, setActivePage] = useState<Page>("overview");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(!profile);
   const [reportForm, setReportForm] = useState({
     incidentType: "",
@@ -58,7 +69,7 @@ export default function StudentDashboard({ profile }: Props) {
   });
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const { data: alerts, isLoading: alertsLoading } = useStudentAlerts();
   const { data: reports, isLoading: reportsLoading } = useStudentReports();
@@ -131,10 +142,7 @@ export default function StudentDashboard({ profile }: Props) {
     }
 
     try {
-      await submitReport.mutateAsync({
-        ...reportForm,
-        photoBlobId,
-      });
+      await submitReport.mutateAsync({ ...reportForm, photoBlobId });
       toast.success("Report submitted successfully!");
       setReportForm({ incidentType: "", location: "", description: "" });
       setPhotoFile(null);
@@ -143,183 +151,187 @@ export default function StudentDashboard({ profile }: Props) {
     }
   };
 
+  const navigate = (page: Page) => {
+    setActivePage(page);
+    setSidebarOpen(false);
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <AppHeader activeTab={activeTab} onTabChange={setActiveTab} />
+      <AppHeader
+        showMenuButton
+        onMenuToggle={() => setSidebarOpen((o) => !o)}
+      />
 
-      {/* Hero Section */}
-      <div
-        className="relative h-44 md:h-56 flex items-end"
-        style={{
-          backgroundImage:
-            "url('/assets/uploads/3df64438-ad54-4fe0-8cf8-1a8a54442ae8-1.jpg')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-      >
-        <div
-          className="absolute inset-0"
-          style={{ background: "rgba(0,0,0,0.5)" }}
-        />
-        <div className="relative z-10 px-6 pb-6 md:px-12">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <h1 className="text-2xl md:text-3xl font-bold text-white">
-              Welcome back, {profile?.name || "Student"}.
-            </h1>
-            <p className="text-sm text-white/80 mt-1">
-              Your safety is our priority at GHRCEM, Pune.
-            </p>
-          </motion.div>
-        </div>
-      </div>
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar overlay on mobile */}
+        <AnimatePresence>
+          {sidebarOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40 bg-black/50 md:hidden"
+              onClick={() => setSidebarOpen(false)}
+            />
+          )}
+        </AnimatePresence>
 
-      {/* Main Content */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6">
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Sidebar */}
-          <aside className="lg:w-64 shrink-0">
-            <Card className="card-shadow mb-4">
-              <CardContent className="pt-5">
-                <div className="flex flex-col items-center text-center mb-4">
-                  <div
-                    className="w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold mb-3"
-                    style={{
-                      background:
-                        "linear-gradient(135deg, oklch(0.22 0.1 15), oklch(0.35 0.12 15))",
-                    }}
-                  >
-                    {profile?.name ? (
-                      profile.name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")
-                        .slice(0, 2)
-                        .toUpperCase()
-                    ) : (
-                      <User className="w-7 h-7" />
-                    )}
-                  </div>
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
-                    Guardian Campus Safety
-                  </div>
-                  <div className="font-semibold text-foreground">
-                    {profile?.name || "—"}
-                  </div>
-                </div>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Status</span>
-                    <Badge
-                      className="bg-success-bg text-success text-xs"
-                      variant="outline"
-                    >
-                      Secure
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Student ID</span>
-                    <span className="font-mono text-xs font-medium">
-                      {profile?.studentId || "—"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Dept.</span>
-                    <span className="text-xs font-medium text-right max-w-[120px] truncate">
-                      {profile?.department || "—"}
-                    </span>
-                  </div>
-                </div>
-                {!profile && (
-                  <Button
-                    data-ocid="sidebar.profile.button"
-                    variant="outline"
-                    size="sm"
-                    className="w-full mt-4"
-                    onClick={() => setShowProfileModal(true)}
-                  >
-                    <User className="w-3.5 h-3.5 mr-1" />
-                    Complete Profile
-                  </Button>
+        {/* Sidebar */}
+        <aside
+          className={`
+            fixed md:sticky top-16 z-50 md:z-auto h-[calc(100vh-4rem)] w-64 shrink-0
+            bg-sidebar-bg border-r border-sidebar-border flex flex-col
+            transition-transform duration-300
+            ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+          `}
+        >
+          {/* Profile mini */}
+          <div className="p-4 border-b border-sidebar-border">
+            <div className="flex items-center gap-3">
+              <div
+                className="w-11 h-11 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
+                style={{
+                  background:
+                    "linear-gradient(135deg, oklch(0.22 0.1 15), oklch(0.4 0.14 15))",
+                }}
+              >
+                {profile?.name ? (
+                  profile.name
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase()
+                ) : (
+                  <User className="w-5 h-5" />
                 )}
-              </CardContent>
-            </Card>
-
-            {/* Quick Links */}
-            <Card className="card-shadow">
-              <CardHeader className="pb-2 pt-4">
-                <CardTitle className="text-sm font-semibold">
-                  Quick Links
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pb-4">
-                <ul className="space-y-1">
-                  {[
-                    { icon: Bell, label: "My Alerts", tab: "alerts" as Tab },
-                    {
-                      icon: FileText,
-                      label: "My Reports",
-                      tab: "reports" as Tab,
-                    },
-                    {
-                      icon: Phone,
-                      label: "Emergency Contacts",
-                      tab: "contacts" as Tab,
-                    },
-                  ].map(({ icon: Icon, label, tab }) => (
-                    <li key={tab}>
-                      <button
-                        type="button"
-                        data-ocid={`quicklinks.${tab}.link`}
-                        onClick={() => setActiveTab(tab)}
-                        className="flex items-center gap-2.5 w-full text-sm py-1.5 px-2 rounded hover:bg-muted text-foreground/80 hover:text-foreground transition-colors"
-                      >
-                        <Icon className="w-4 h-4 text-muted-foreground" />
-                        {label}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          </aside>
-
-          {/* Main column */}
-          <div className="flex-1 min-w-0">
-            {(activeTab === "home" || activeTab === "dashboard") && (
-              <DashboardView
-                alerts={alerts}
-                alertsLoading={alertsLoading}
-                reports={reports}
-                reportsLoading={reportsLoading}
-                reportForm={reportForm}
-                setReportForm={setReportForm}
-                photoFile={photoFile}
-                setPhotoFile={setPhotoFile}
-                fileInputRef={fileInputRef}
-                uploadingPhoto={uploadingPhoto}
-                handleSOS={handleSOS}
-                handleReportSubmit={handleReportSubmit}
-                sosPending={submitSOS.isPending}
-                reportPending={submitReport.isPending || uploadingPhoto}
-              />
-            )}
-
-            {activeTab === "alerts" && (
-              <AlertsView alerts={alerts} isLoading={alertsLoading} />
-            )}
-
-            {activeTab === "reports" && (
-              <ReportsView reports={reports} isLoading={reportsLoading} />
-            )}
-
-            {activeTab === "contacts" && <ContactsView />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold text-sidebar-fg truncate">
+                  {profile?.name || "Student"}
+                </div>
+                <div className="text-xs text-sidebar-muted truncate">
+                  {profile?.studentId || "Setup profile"}
+                </div>
+              </div>
+              <button
+                type="button"
+                className="md:hidden text-sidebar-muted hover:text-sidebar-fg"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-        </div>
-      </main>
+
+          {/* Nav */}
+          <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+            {navItems.map(({ page, label, icon: Icon }) => {
+              const isActive = activePage === page;
+              return (
+                <button
+                  key={page}
+                  type="button"
+                  data-ocid={`student.nav.${page}.link`}
+                  onClick={() => navigate(page)}
+                  className={`
+                    w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all
+                    ${
+                      isActive
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-sidebar-fg hover:bg-sidebar-hover"
+                    }
+                  `}
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  <span className="flex-1 text-left">{label}</span>
+                  {isActive && (
+                    <ChevronRight className="w-3.5 h-3.5 shrink-0" />
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* SOS quick-access at bottom */}
+          <div className="p-3 border-t border-sidebar-border">
+            <button
+              type="button"
+              data-ocid="sidebar.sos.button"
+              onClick={handleSOS}
+              disabled={submitSOS.isPending}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm text-white transition-all active:scale-95 disabled:opacity-60"
+              style={{ background: "oklch(var(--sos-red))" }}
+            >
+              {submitSOS.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  <AlertTriangle className="w-4 h-4" />
+                  Quick SOS
+                </>
+              )}
+            </button>
+          </div>
+        </aside>
+
+        {/* Main content */}
+        <main className="flex-1 overflow-y-auto">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activePage}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.18 }}
+              className="h-full"
+            >
+              {activePage === "overview" && (
+                <OverviewDashboard
+                  profile={profile}
+                  alerts={alerts}
+                  reports={reports}
+                  alertsLoading={alertsLoading}
+                  reportsLoading={reportsLoading}
+                  onNavigate={navigate}
+                  onSOS={handleSOS}
+                  sosPending={submitSOS.isPending}
+                />
+              )}
+              {activePage === "sos" && (
+                <SOSDashboard
+                  alerts={alerts}
+                  isLoading={alertsLoading}
+                  onSOS={handleSOS}
+                  sosPending={submitSOS.isPending}
+                />
+              )}
+              {activePage === "reports" && (
+                <ReportsDashboard
+                  reports={reports}
+                  isLoading={reportsLoading}
+                  reportForm={reportForm}
+                  setReportForm={setReportForm}
+                  photoFile={photoFile}
+                  setPhotoFile={setPhotoFile}
+                  fileInputRef={fileInputRef}
+                  uploadingPhoto={uploadingPhoto}
+                  handleReportSubmit={handleReportSubmit}
+                  reportPending={submitReport.isPending || uploadingPhoto}
+                />
+              )}
+              {activePage === "contacts" && <ContactsDashboard />}
+              {activePage === "profile" && (
+                <ProfileDashboard
+                  profile={profile}
+                  onSetupProfile={() => setShowProfileModal(true)}
+                />
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </main>
+      </div>
 
       <AppFooter />
 
@@ -331,73 +343,169 @@ export default function StudentDashboard({ profile }: Props) {
   );
 }
 
-/* ─── DashboardView ─────────────────────────────────────────────────── */
-interface DashboardViewProps {
-  alerts: any[] | undefined;
-  alertsLoading: boolean;
-  reports: any[] | undefined;
-  reportsLoading: boolean;
-  reportForm: { incidentType: string; location: string; description: string };
-  setReportForm: React.Dispatch<
-    React.SetStateAction<{
-      incidentType: string;
-      location: string;
-      description: string;
-    }>
-  >;
-  photoFile: File | null;
-  setPhotoFile: (f: File | null) => void;
-  fileInputRef: React.RefObject<HTMLInputElement | null>;
-  uploadingPhoto: boolean;
-  handleSOS: () => void;
-  handleReportSubmit: (e: React.FormEvent) => void;
-  sosPending: boolean;
-  reportPending: boolean;
+/* ─── Page Header Component ────────────────────────────────────── */
+function PageHeader({
+  title,
+  subtitle,
+  icon: Icon,
+}: {
+  title: string;
+  subtitle?: string;
+  icon?: React.ElementType;
+}) {
+  return (
+    <div className="px-6 py-5 border-b border-border bg-card">
+      <div className="flex items-center gap-3">
+        {Icon && (
+          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Icon className="w-5 h-5 text-primary" />
+          </div>
+        )}
+        <div>
+          <h1 className="text-lg font-bold text-foreground">{title}</h1>
+          {subtitle && (
+            <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function DashboardView({
+/* ─── Overview Dashboard ────────────────────────────────────────── */
+function OverviewDashboard({
+  profile,
   alerts,
-  alertsLoading,
   reports,
+  alertsLoading,
   reportsLoading,
-  reportForm,
-  setReportForm,
-  photoFile,
-  setPhotoFile,
-  fileInputRef,
-  handleSOS,
-  handleReportSubmit,
+  onNavigate,
+  onSOS,
   sosPending,
-  reportPending,
-}: DashboardViewProps) {
-  return (
-    <div className="space-y-5">
-      <h2 className="text-lg font-bold text-foreground">Dashboard</h2>
+}: {
+  profile: UserProfile | null;
+  alerts: any[] | undefined;
+  reports: any[] | undefined;
+  alertsLoading: boolean;
+  reportsLoading: boolean;
+  onNavigate: (page: Page) => void;
+  onSOS: () => void;
+  sosPending: boolean;
+}) {
+  const activeAlerts = alerts?.filter((a) => !a.status).length ?? 0;
+  const totalReports = reports?.length ?? 0;
 
-      {/* Row 1 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* SOS Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-        >
+  return (
+    <div>
+      {/* College hero banner */}
+      <div
+        className="relative h-48 md:h-64 flex items-end"
+        style={{
+          backgroundImage:
+            "url('/assets/uploads/3df64438-ad54-4fe0-8cf8-1a8a54442ae8-1.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        <div
+          className="absolute inset-0"
+          style={{ background: "rgba(0,0,0,0.52)" }}
+        />
+        <div className="relative z-10 px-6 pb-5">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <p className="text-xs font-bold uppercase tracking-widest text-white/60 mb-1">
+              GH Raisoni College of Engineering and Management, Pune
+            </p>
+            <h2 className="text-2xl md:text-3xl font-black text-white">
+              Welcome, {profile?.name || "Student"}
+            </h2>
+            <p className="text-sm text-white/75 mt-1">
+              Your safety is our priority.
+            </p>
+          </motion.div>
+        </div>
+      </div>
+
+      <div className="p-6 space-y-6">
+        {/* Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            {
+              label: "Active Alerts",
+              value: alertsLoading ? "—" : activeAlerts,
+              icon: AlertTriangle,
+              color: "text-destructive",
+              bg: "bg-destructive/10",
+              page: "sos" as Page,
+            },
+            {
+              label: "Reports Filed",
+              value: reportsLoading ? "—" : totalReports,
+              icon: FileText,
+              color: "text-primary",
+              bg: "bg-primary/10",
+              page: "reports" as Page,
+            },
+            {
+              label: "Profile Status",
+              value: profile ? "Complete" : "Incomplete",
+              icon: User,
+              color: profile ? "text-success" : "text-muted-foreground",
+              bg: profile ? "bg-success-bg" : "bg-muted",
+              page: "profile" as Page,
+            },
+          ].map(({ label, value, icon: Icon, color, bg, page }) => (
+            <motion.div
+              key={label}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              whileHover={{ y: -2 }}
+            >
+              <Card
+                className="card-shadow cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => onNavigate(page)}
+                data-ocid={`overview.${page}.card`}
+              >
+                <CardContent className="p-5 flex items-center gap-4">
+                  <div
+                    className={`w-12 h-12 rounded-xl ${bg} flex items-center justify-center shrink-0`}
+                  >
+                    <Icon className={`w-6 h-6 ${color}`} />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-black text-foreground">
+                      {value}
+                    </div>
+                    <div className="text-xs text-muted-foreground">{label}</div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {/* SOS Quick Trigger */}
           <Card className="overflow-hidden border-0 sos-gradient text-white">
             <CardContent className="p-6 flex flex-col items-center text-center gap-4">
               <div className="flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5" />
+                <Shield className="w-5 h-5" />
                 <span className="text-sm font-bold uppercase tracking-widest">
                   Emergency SOS
                 </span>
               </div>
-              <p className="text-xs opacity-75">
-                Press the button below to send an immediate emergency alert with
-                your location to campus security.
+              <p className="text-xs opacity-75 max-w-xs">
+                Press the button to send an immediate emergency alert with your
+                location to campus security.
               </p>
               <button
                 type="button"
                 data-ocid="sos.primary_button"
-                onClick={handleSOS}
+                onClick={onSOS}
                 disabled={sosPending}
                 className="w-28 h-28 rounded-full flex flex-col items-center justify-center text-white font-black text-lg uppercase tracking-widest transition-transform active:scale-95 disabled:opacity-60 sos-glow"
                 style={{ background: "oklch(var(--sos-red))" }}
@@ -411,436 +519,657 @@ function DashboardView({
                   </>
                 )}
               </button>
-              <p className="text-[11px] opacity-60">
-                Tap once to send emergency alert
-              </p>
+              <button
+                type="button"
+                className="text-xs opacity-60 underline underline-offset-2"
+                onClick={() => onNavigate("sos")}
+              >
+                View SOS History →
+              </button>
             </CardContent>
           </Card>
-        </motion.div>
 
-        {/* Active Alerts */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <Card className="card-shadow h-full">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <Bell className="w-4 h-4 text-destructive" />
-                Active Alerts
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {alertsLoading ? (
-                <div data-ocid="alerts.loading_state" className="space-y-2">
-                  <Skeleton className="h-12 w-full" />
-                  <Skeleton className="h-12 w-full" />
-                </div>
-              ) : alerts && alerts.length > 0 ? (
-                <ul className="space-y-2">
-                  {alerts.slice(0, 3).map((alert, i) => (
-                    <li
-                      key={`a-${String(alert.timestamp)}-${i}`}
-                      data-ocid={`alerts.item.${i + 1}`}
-                      className="flex items-start gap-2 p-2.5 rounded-md bg-destructive/5 border border-destructive/20"
-                    >
-                      <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-medium text-foreground truncate">
-                          {alert.message}
-                        </div>
-                        <div className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                          <MapPin className="w-3 h-3" />
-                          {alert.location}
-                        </div>
-                        <div className="text-[11px] text-muted-foreground">
-                          {formatTimestamp(alert.timestamp)}
-                        </div>
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className={
-                          alert.status
-                            ? "text-xs text-success border-success"
-                            : "text-xs"
-                        }
-                      >
-                        {alert.status ? "Resolved" : "Active"}
-                      </Badge>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div
-                  data-ocid="alerts.empty_state"
-                  className="text-center py-8 text-muted-foreground"
-                >
-                  <Bell className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                  <p className="text-sm">No active alerts</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-
-      {/* Row 2 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* Report Form */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-        >
+          {/* Recent Activity */}
           <Card className="card-shadow">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <FileText className="w-4 h-4 text-primary" />
-                Quick Incident Report
+                <Bell className="w-4 h-4 text-destructive" />
+                Recent Activity
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <form
-                onSubmit={handleReportSubmit}
-                className="space-y-3"
-                data-ocid="report.panel"
-              >
-                <div className="space-y-1">
-                  <Label className="text-xs">Incident Type *</Label>
-                  <Select
-                    value={reportForm.incidentType}
-                    onValueChange={(v) =>
-                      setReportForm((f) => ({ ...f, incidentType: v }))
-                    }
-                  >
-                    <SelectTrigger
-                      data-ocid="report.select"
-                      className="h-9 text-sm"
-                    >
-                      <SelectValue placeholder="Select type..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[
-                        "Theft",
-                        "Harassment",
-                        "Medical Emergency",
-                        "Fire",
-                        "Suspicious Activity",
-                        "Vandalism",
-                        "Other",
-                      ].map((t) => (
-                        <SelectItem key={t} value={t}>
-                          {t}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Location *</Label>
-                  <Input
-                    data-ocid="report.input"
-                    className="h-9 text-sm"
-                    placeholder="e.g. Block A, Ground Floor"
-                    value={reportForm.location}
-                    onChange={(e) =>
-                      setReportForm((f) => ({ ...f, location: e.target.value }))
-                    }
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Description *</Label>
-                  <Textarea
-                    data-ocid="report.textarea"
-                    className="text-sm resize-none"
-                    rows={3}
-                    placeholder="Describe what happened..."
-                    value={reportForm.description}
-                    onChange={(e) =>
-                      setReportForm((f) => ({
-                        ...f,
-                        description: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Photo (optional)</Label>
-                  <button
-                    type="button"
-                    data-ocid="report.dropzone"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-border rounded-md p-3 text-center cursor-pointer hover:bg-muted/50 transition-colors"
-                  >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) =>
-                        setPhotoFile(e.target.files?.[0] ?? null)
-                      }
-                    />
-                    <Upload className="w-4 h-4 mx-auto mb-1 text-muted-foreground" />
-                    <p className="text-xs text-muted-foreground">
-                      {photoFile ? photoFile.name : "Click to upload photo"}
-                    </p>
-                  </button>
-                </div>
-                <Button
-                  data-ocid="report.submit_button"
-                  type="submit"
-                  className="w-full h-9 text-sm"
-                  disabled={reportPending}
+            <CardContent className="space-y-2">
+              {alertsLoading || reportsLoading ? (
+                <div
+                  data-ocid="overview.activity.loading_state"
+                  className="space-y-2"
                 >
-                  {reportPending ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
-                      Submitting...
-                    </>
-                  ) : (
-                    "Submit Report"
-                  )}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Recent Reports */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <Card className="card-shadow h-full">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <FileText className="w-4 h-4 text-muted-foreground" />
-                Your Recent Reports
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {reportsLoading ? (
-                <div data-ocid="reports.loading_state" className="space-y-2">
-                  <Skeleton className="h-14 w-full" />
-                  <Skeleton className="h-14 w-full" />
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-10 w-full" />
+                  ))}
                 </div>
-              ) : reports && reports.length > 0 ? (
-                <ul className="space-y-2">
-                  {reports.slice(0, 4).map((r, i) => (
-                    <li
-                      key={`r-${String(r.timestamp)}-${i}`}
-                      data-ocid={`reports.item.${i + 1}`}
-                      className="flex items-start justify-between gap-2 p-2.5 rounded-md bg-muted/50"
+              ) : (
+                <>
+                  {(alerts?.slice(0, 2) ?? []).map((a, i) => (
+                    <div
+                      key={`oa-${String(a.timestamp)}-${i}`}
+                      data-ocid={`overview.alert.item.${i + 1}`}
+                      className="flex items-center gap-2.5 p-2.5 rounded-md bg-destructive/5 border border-destructive/15"
                     >
+                      <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-semibold">
+                        <div className="text-xs font-medium truncate">
+                          {a.message}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">
+                          {formatTimestamp(a.timestamp)}
+                        </div>
+                      </div>
+                      <Badge
+                        variant={a.status ? "outline" : "destructive"}
+                        className="text-[10px]"
+                      >
+                        {a.status ? "Resolved" : "Active"}
+                      </Badge>
+                    </div>
+                  ))}
+                  {(reports?.slice(0, 2) ?? []).map((r, i) => (
+                    <div
+                      key={`or-${String(r.timestamp)}-${i}`}
+                      data-ocid={`overview.report.item.${i + 1}`}
+                      className="flex items-center gap-2.5 p-2.5 rounded-md bg-muted/60"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-medium truncate">
                           {r.incidentType}
                         </div>
-                        <div className="text-[11px] text-muted-foreground flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          {r.location}
-                        </div>
-                        <div className="text-[11px] text-muted-foreground truncate">
-                          {r.description}
+                        <div className="text-[11px] text-muted-foreground">
+                          {formatTimestamp(r.timestamp)}
                         </div>
                       </div>
-                      <div className="text-[11px] text-muted-foreground text-right shrink-0">
-                        {formatTimestamp(r.timestamp)}
-                      </div>
-                    </li>
+                    </div>
                   ))}
-                </ul>
-              ) : (
-                <div
-                  data-ocid="reports.empty_state"
-                  className="text-center py-8 text-muted-foreground"
-                >
-                  <FileText className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                  <p className="text-sm">No reports yet</p>
-                </div>
+                  {!alerts?.length && !reports?.length && (
+                    <div
+                      data-ocid="overview.activity.empty_state"
+                      className="text-center py-6 text-muted-foreground"
+                    >
+                      <Bell className="w-7 h-7 mx-auto mb-2 opacity-30" />
+                      <p className="text-sm">No recent activity</p>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
-        </motion.div>
+        </div>
       </div>
     </div>
   );
 }
 
-/* ─── AlertsView ────────────────────────────────────────────────────── */
-function AlertsView({
+/* ─── SOS Dashboard ──────────────────────────────────────────────── */
+function SOSDashboard({
   alerts,
   isLoading,
-}: { alerts: any[] | undefined; isLoading: boolean }) {
+  onSOS,
+  sosPending,
+}: {
+  alerts: any[] | undefined;
+  isLoading: boolean;
+  onSOS: () => void;
+  sosPending: boolean;
+}) {
   return (
     <div>
-      <h2 className="text-lg font-bold mb-4">My SOS Alerts</h2>
-      {isLoading ? (
-        <div data-ocid="alerts_page.loading_state" className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-16 w-full" />
-          ))}
-        </div>
-      ) : alerts && alerts.length > 0 ? (
-        <div className="space-y-3">
-          {alerts.map((a, i) => (
-            <Card
-              key={`ap-${String(a.timestamp)}-${i}`}
-              data-ocid={`alerts_page.item.${i + 1}`}
-              className="card-shadow"
+      <PageHeader
+        title="SOS Emergency"
+        subtitle="Send emergency alerts and view your alert history"
+        icon={AlertTriangle}
+      />
+      <div className="p-6 space-y-8">
+        {/* Big SOS trigger */}
+        <Card className="overflow-hidden border-0 sos-gradient text-white">
+          <CardContent className="p-8 flex flex-col items-center text-center gap-5">
+            <h2 className="text-xl font-bold uppercase tracking-widest">
+              Emergency SOS
+            </h2>
+            <p className="text-sm opacity-80 max-w-md">
+              Press the button below to instantly send your GPS location and an
+              emergency alert to campus security. Help will be dispatched
+              immediately.
+            </p>
+            <motion.button
+              type="button"
+              data-ocid="sos.primary_button"
+              onClick={onSOS}
+              disabled={sosPending}
+              whileTap={{ scale: 0.93 }}
+              animate={{ scale: [1, 1.04, 1] }}
+              transition={{
+                repeat: Number.POSITIVE_INFINITY,
+                duration: 2.5,
+                ease: "easeInOut",
+              }}
+              className="w-40 h-40 rounded-full flex flex-col items-center justify-center text-white font-black text-2xl uppercase tracking-widest disabled:opacity-60"
+              style={{
+                background: "oklch(var(--sos-red))",
+                boxShadow:
+                  "0 0 0 16px oklch(var(--sos-red) / 0.15), 0 0 0 32px oklch(var(--sos-red) / 0.07), 0 0 32px 4px oklch(var(--sos-red) / 0.4)",
+              }}
             >
-              <CardContent className="p-4 flex items-center gap-3">
-                <div
-                  className={`w-3 h-3 rounded-full shrink-0 ${a.status ? "bg-success" : "bg-destructive"}`}
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm">{a.message}</div>
-                  <div className="text-xs text-muted-foreground flex items-center gap-1">
-                    <MapPin className="w-3 h-3" />
-                    {a.location}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {formatTimestamp(a.timestamp)}
-                  </div>
-                </div>
-                <Badge
-                  variant={a.status ? "outline" : "destructive"}
-                  className="text-xs"
-                >
-                  {a.status ? "Resolved" : "Active"}
-                </Badge>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <Card className="card-shadow">
-          <CardContent
-            data-ocid="alerts_page.empty_state"
-            className="py-12 text-center text-muted-foreground"
-          >
-            <Bell className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            <p>No SOS alerts sent yet.</p>
+              {sosPending ? (
+                <Loader2 className="w-10 h-10 animate-spin" />
+              ) : (
+                <>
+                  <AlertTriangle className="w-10 h-10 mb-1" />
+                  SOS
+                </>
+              )}
+            </motion.button>
+            <p className="text-xs opacity-60">
+              ⚠️ Only press in a real emergency. You will be asked to confirm.
+            </p>
           </CardContent>
         </Card>
-      )}
+
+        {/* Alert History */}
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3">
+            Your SOS Alert History
+          </h3>
+          {isLoading ? (
+            <div data-ocid="sos.history.loading_state" className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
+          ) : alerts && alerts.length > 0 ? (
+            <div className="space-y-3">
+              {alerts.map((a, i) => (
+                <Card
+                  key={`sh-${String(a.timestamp)}-${i}`}
+                  data-ocid={`sos.history.item.${i + 1}`}
+                  className="card-shadow"
+                >
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div
+                      className={`w-3 h-3 rounded-full shrink-0 ${a.status ? "bg-success" : "bg-destructive"}`}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm">{a.message}</div>
+                      <div className="text-xs text-muted-foreground flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        {a.location}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatTimestamp(a.timestamp)}
+                      </div>
+                    </div>
+                    <Badge
+                      variant={a.status ? "outline" : "destructive"}
+                      className="text-xs"
+                    >
+                      {a.status ? "Resolved" : "Active"}
+                    </Badge>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card className="card-shadow">
+              <CardContent
+                data-ocid="sos.history.empty_state"
+                className="py-12 text-center text-muted-foreground"
+              >
+                <Bell className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                <p>No SOS alerts sent yet.</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
-/* ─── ReportsView ───────────────────────────────────────────────────── */
-function ReportsView({
+/* ─── Reports Dashboard ──────────────────────────────────────────── */
+function ReportsDashboard({
   reports,
   isLoading,
-}: { reports: any[] | undefined; isLoading: boolean }) {
+  reportForm,
+  setReportForm,
+  photoFile,
+  setPhotoFile,
+  fileInputRef,
+  uploadingPhoto,
+  handleReportSubmit,
+  reportPending,
+}: {
+  reports: any[] | undefined;
+  isLoading: boolean;
+  reportForm: { incidentType: string; location: string; description: string };
+  setReportForm: React.Dispatch<
+    React.SetStateAction<{
+      incidentType: string;
+      location: string;
+      description: string;
+    }>
+  >;
+  photoFile: File | null;
+  setPhotoFile: (f: File | null) => void;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  uploadingPhoto: boolean;
+  handleReportSubmit: (e: React.FormEvent) => void;
+  reportPending: boolean;
+}) {
   return (
     <div>
-      <h2 className="text-lg font-bold mb-4">My Incident Reports</h2>
-      {isLoading ? (
-        <div data-ocid="reports_page.loading_state" className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-20 w-full" />
-          ))}
-        </div>
-      ) : reports && reports.length > 0 ? (
-        <div className="space-y-3">
-          {reports.map((r, i) => (
-            <Card
-              key={`rpp-${String(r.timestamp)}-${i}`}
-              data-ocid={`reports_page.item.${i + 1}`}
-              className="card-shadow"
-            >
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1">
-                    <Badge variant="outline" className="mb-2 text-xs">
-                      {r.incidentType}
-                    </Badge>
-                    <p className="text-sm text-foreground">{r.description}</p>
-                    <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                      <MapPin className="w-3 h-3" />
-                      {r.location}
-                    </div>
+      <PageHeader
+        title="Incident Reports"
+        subtitle="Submit a new incident report or review your history"
+        icon={FileText}
+      />
+      <div className="p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Form */}
+          <div>
+            <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3">
+              New Report
+            </h3>
+            <Card className="card-shadow">
+              <CardContent className="pt-5">
+                <form
+                  onSubmit={handleReportSubmit}
+                  className="space-y-4"
+                  data-ocid="report.panel"
+                >
+                  <div className="space-y-1.5">
+                    <Label>Incident Type *</Label>
+                    <Select
+                      value={reportForm.incidentType}
+                      onValueChange={(v) =>
+                        setReportForm((f) => ({ ...f, incidentType: v }))
+                      }
+                    >
+                      <SelectTrigger data-ocid="report.select">
+                        <SelectValue placeholder="Select type..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[
+                          "Theft",
+                          "Harassment",
+                          "Medical Emergency",
+                          "Fire",
+                          "Suspicious Activity",
+                          "Vandalism",
+                          "Other",
+                        ].map((t) => (
+                          <SelectItem key={t} value={t}>
+                            {t}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="text-xs text-muted-foreground text-right shrink-0">
-                    {formatTimestamp(r.timestamp)}
+                  <div className="space-y-1.5">
+                    <Label>Location *</Label>
+                    <Input
+                      data-ocid="report.input"
+                      placeholder="e.g. Block A, Ground Floor"
+                      value={reportForm.location}
+                      onChange={(e) =>
+                        setReportForm((f) => ({
+                          ...f,
+                          location: e.target.value,
+                        }))
+                      }
+                    />
                   </div>
-                </div>
+                  <div className="space-y-1.5">
+                    <Label>Description *</Label>
+                    <Textarea
+                      data-ocid="report.textarea"
+                      className="resize-none"
+                      rows={4}
+                      placeholder="Describe what happened..."
+                      value={reportForm.description}
+                      onChange={(e) =>
+                        setReportForm((f) => ({
+                          ...f,
+                          description: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Photo (optional)</Label>
+                    <button
+                      type="button"
+                      data-ocid="report.dropzone"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:bg-muted/50 transition-colors"
+                    >
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) =>
+                          setPhotoFile(e.target.files?.[0] ?? null)
+                        }
+                      />
+                      <Upload className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">
+                        {photoFile ? photoFile.name : "Click to upload photo"}
+                      </p>
+                    </button>
+                  </div>
+                  <Button
+                    data-ocid="report.submit_button"
+                    type="submit"
+                    className="w-full"
+                    disabled={reportPending}
+                  >
+                    {reportPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        {uploadingPhoto
+                          ? "Uploading photo..."
+                          : "Submitting..."}
+                      </>
+                    ) : (
+                      "Submit Report"
+                    )}
+                  </Button>
+                </form>
               </CardContent>
             </Card>
-          ))}
+          </div>
+
+          {/* History */}
+          <div>
+            <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3">
+              Your Report History
+            </h3>
+            {isLoading ? (
+              <div
+                data-ocid="reports.history.loading_state"
+                className="space-y-3"
+              >
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-20 w-full" />
+                ))}
+              </div>
+            ) : reports && reports.length > 0 ? (
+              <div className="space-y-3">
+                {reports.map((r, i) => (
+                  <Card
+                    key={`rh-${String(r.timestamp)}-${i}`}
+                    data-ocid={`reports.item.${i + 1}`}
+                    className="card-shadow"
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <Badge variant="outline" className="mb-2 text-xs">
+                            {r.incidentType}
+                          </Badge>
+                          <p className="text-sm text-foreground">
+                            {r.description}
+                          </p>
+                          <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                            <MapPin className="w-3 h-3" />
+                            {r.location}
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground text-right shrink-0">
+                          {formatTimestamp(r.timestamp)}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card className="card-shadow">
+                <CardContent
+                  data-ocid="reports.history.empty_state"
+                  className="py-12 text-center text-muted-foreground"
+                >
+                  <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                  <p>No incident reports submitted yet.</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
-      ) : (
-        <Card className="card-shadow">
-          <CardContent
-            data-ocid="reports_page.empty_state"
-            className="py-12 text-center text-muted-foreground"
-          >
-            <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            <p>No incident reports submitted yet.</p>
-          </CardContent>
-        </Card>
-      )}
+      </div>
     </div>
   );
 }
 
-/* ─── ContactsView ──────────────────────────────────────────────────── */
-function ContactsView() {
+/* ─── Contacts Dashboard ─────────────────────────────────────────── */
+function ContactsDashboard() {
   const contacts = [
     {
       name: "Campus Security Control Room",
       phone: "020-1234-5678",
       available: "24/7",
+      urgent: true,
     },
-    { name: "Police Control Room", phone: "100", available: "24/7" },
-    { name: "Fire Brigade", phone: "101", available: "24/7" },
-    { name: "Ambulance", phone: "108", available: "24/7" },
-    { name: "Women Helpline", phone: "1091", available: "24/7" },
+    {
+      name: "Police Control Room",
+      phone: "100",
+      available: "24/7",
+      urgent: true,
+    },
+    { name: "Fire Brigade", phone: "101", available: "24/7", urgent: true },
+    { name: "Ambulance", phone: "108", available: "24/7", urgent: true },
+    { name: "Women Helpline", phone: "1091", available: "24/7", urgent: true },
     {
       name: "GHRCEM Admin Office",
       phone: "020-2765-1111",
       available: "Mon–Sat 9AM–5PM",
+      urgent: false,
     },
     {
       name: "Student Welfare Cell",
       phone: "020-2765-1122",
       available: "Mon–Fri 10AM–4PM",
+      urgent: false,
+    },
+    {
+      name: "Anti-Ragging Committee",
+      phone: "020-2765-1133",
+      available: "Mon–Fri 9AM–5PM",
+      urgent: false,
     },
   ];
 
   return (
     <div>
-      <h2 className="text-lg font-bold mb-4">Emergency Contacts</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {contacts.map((c, i) => (
-          <Card
-            key={c.name}
-            data-ocid={`contacts.item.${i + 1}`}
-            className="card-shadow"
-          >
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
-                <Phone className="w-5 h-5 text-destructive" />
-              </div>
-              <div className="flex-1">
-                <div className="font-medium text-sm">{c.name}</div>
-                <a
-                  href={`tel:${c.phone}`}
-                  className="text-primary text-sm font-semibold"
+      <PageHeader
+        title="Emergency Contacts"
+        subtitle="Quick access to all campus and emergency helplines"
+        icon={Phone}
+      />
+      <div className="p-6 space-y-6">
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3">
+            Emergency Helplines
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {contacts
+              .filter((c) => c.urgent)
+              .map((c, i) => (
+                <Card
+                  key={c.name}
+                  data-ocid={`contacts.item.${i + 1}`}
+                  className="card-shadow border-destructive/20"
                 >
-                  {c.phone}
-                </a>
-                <div className="text-xs text-muted-foreground">
-                  {c.available}
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
+                      <Phone className="w-5 h-5 text-destructive" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm leading-tight">
+                        {c.name}
+                      </div>
+                      <a
+                        href={`tel:${c.phone}`}
+                        className="text-destructive text-base font-black"
+                      >
+                        {c.phone}
+                      </a>
+                      <div className="text-xs text-muted-foreground">
+                        {c.available}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+          </div>
+        </div>
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3">
+            College Contacts
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {contacts
+              .filter((c) => !c.urgent)
+              .map((c, i) => (
+                <Card
+                  key={c.name}
+                  data-ocid={`contacts.college.item.${i + 1}`}
+                  className="card-shadow"
+                >
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <Phone className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm leading-tight">
+                        {c.name}
+                      </div>
+                      <a
+                        href={`tel:${c.phone}`}
+                        className="text-primary text-sm font-bold"
+                      >
+                        {c.phone}
+                      </a>
+                      <div className="text-xs text-muted-foreground">
+                        {c.available}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Profile Dashboard ──────────────────────────────────────────── */
+function ProfileDashboard({
+  profile,
+  onSetupProfile,
+}: {
+  profile: UserProfile | null;
+  onSetupProfile: () => void;
+}) {
+  return (
+    <div>
+      <PageHeader
+        title="My Profile"
+        subtitle="View and manage your student profile"
+        icon={User}
+      />
+      <div className="p-6">
+        {profile ? (
+          <div className="max-w-lg space-y-4">
+            <Card className="card-shadow">
+              <CardContent className="pt-6 pb-6">
+                <div className="flex items-center gap-4 mb-6">
+                  <div
+                    className="w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-black shrink-0"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, oklch(0.22 0.1 15), oklch(0.4 0.14 15))",
+                    }}
+                  >
+                    {profile.name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .slice(0, 2)
+                      .toUpperCase()}
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold">{profile.name}</h2>
+                    <Badge variant="outline" className="text-xs">
+                      {profile.department}
+                    </Badge>
+                  </div>
                 </div>
+                <div className="space-y-3">
+                  {[
+                    { label: "Full Name", value: profile.name },
+                    { label: "Student ID", value: profile.studentId },
+                    { label: "Department", value: profile.department },
+                    { label: "Phone", value: profile.phoneNumber },
+                  ].map(({ label, value }) => (
+                    <div
+                      key={label}
+                      className="flex items-center justify-between py-2.5 border-b border-border last:border-0"
+                    >
+                      <span className="text-sm text-muted-foreground">
+                        {label}
+                      </span>
+                      <span className="text-sm font-medium text-foreground">
+                        {value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+            <Button
+              data-ocid="profile.edit.button"
+              variant="outline"
+              className="w-full"
+              onClick={onSetupProfile}
+            >
+              <User className="w-4 h-4 mr-2" />
+              Edit Profile
+            </Button>
+          </div>
+        ) : (
+          <Card className="card-shadow max-w-lg">
+            <CardContent
+              data-ocid="profile.setup.panel"
+              className="py-12 flex flex-col items-center text-center gap-4"
+            >
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                <User className="w-8 h-8 text-muted-foreground" />
               </div>
+              <div>
+                <h3 className="font-semibold text-foreground">
+                  No Profile Setup
+                </h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Complete your profile so campus security can identify you.
+                </p>
+              </div>
+              <Button data-ocid="profile.setup.button" onClick={onSetupProfile}>
+                <User className="w-4 h-4 mr-2" />
+                Set Up Profile
+              </Button>
             </CardContent>
           </Card>
-        ))}
+        )}
       </div>
     </div>
   );

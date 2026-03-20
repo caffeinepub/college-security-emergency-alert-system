@@ -1,22 +1,23 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { LogOut, Shield, User } from "lucide-react";
+import { LogOut, Menu, Shield } from "lucide-react";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useUserProfile } from "../hooks/useQueries";
 import { getInitials } from "../utils/helpers";
 
-type Tab = "home" | "dashboard" | "alerts" | "reports" | "contacts";
-
 interface AppHeaderProps {
-  activeTab: Tab;
-  onTabChange: (tab: Tab) => void;
   isAdmin?: boolean;
+  onMenuToggle?: () => void;
+  showMenuButton?: boolean;
+  // Legacy tab props (kept for backward compat)
+  activeTab?: string;
+  onTabChange?: (tab: any) => void;
 }
 
 export default function AppHeader({
-  activeTab,
-  onTabChange,
   isAdmin,
+  onMenuToggle,
+  showMenuButton,
 }: AppHeaderProps) {
   const { clear, identity } = useInternetIdentity();
   const { data: profile } = useUserProfile();
@@ -24,23 +25,22 @@ export default function AppHeader({
     profile?.name || `${identity?.getPrincipal().toString().slice(0, 8)}...`;
   const initials = profile?.name ? getInitials(profile.name) : "??";
 
-  const navItems: { key: Tab; label: string }[] = isAdmin
-    ? [
-        { key: "dashboard", label: "Dashboard" },
-        { key: "alerts", label: "Alerts" },
-        { key: "reports", label: "Reports" },
-      ]
-    : [
-        { key: "home", label: "Home" },
-        { key: "dashboard", label: "Dashboard" },
-        { key: "alerts", label: "Alerts" },
-        { key: "reports", label: "Reports" },
-        { key: "contacts", label: "Contacts" },
-      ];
-
   return (
-    <header className="sticky top-0 z-50 bg-card border-b border-border shadow-xs">
-      <div className="max-w-7xl mx-auto px-4 h-16 flex items-center gap-4">
+    <header className="sticky top-0 z-50 bg-card border-b border-border shadow-sm">
+      <div className="px-4 h-16 flex items-center gap-4">
+        {/* Mobile hamburger */}
+        {showMenuButton && (
+          <button
+            type="button"
+            data-ocid="nav.menu_toggle.button"
+            onClick={onMenuToggle}
+            className="flex md:hidden items-center justify-center w-9 h-9 rounded-md text-foreground/70 hover:text-foreground hover:bg-muted transition-colors"
+            aria-label="Toggle navigation"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        )}
+
         {/* Brand */}
         <div className="flex items-center gap-2.5 shrink-0">
           <div
@@ -62,47 +62,8 @@ export default function AppHeader({
           </div>
         </div>
 
-        {/* Nav */}
-        <nav className="hidden md:flex items-center gap-1 flex-1 ml-4">
-          {navItems.map(({ key, label }) => (
-            <button
-              type="button"
-              key={key}
-              data-ocid={`nav.${key}.link`}
-              onClick={() => onTabChange(key)}
-              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                activeTab === key
-                  ? "text-nav-active border-b-2"
-                  : "text-foreground/70 hover:text-foreground"
-              }`}
-              style={
-                activeTab === key
-                  ? { borderColor: "oklch(var(--nav-active))" }
-                  : {}
-              }
-            >
-              {label}
-            </button>
-          ))}
-        </nav>
-
-        {/* Mobile nav */}
-        <div className="flex md:hidden flex-1 justify-center gap-1">
-          {navItems.slice(0, 3).map(({ key, label }) => (
-            <button
-              type="button"
-              key={key}
-              onClick={() => onTabChange(key)}
-              className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-                activeTab === key
-                  ? "text-nav-active font-bold"
-                  : "text-foreground/70"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        {/* Spacer */}
+        <div className="flex-1" />
 
         {/* User */}
         <div className="flex items-center gap-2 shrink-0">
