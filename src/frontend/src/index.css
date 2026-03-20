@@ -1,0 +1,89 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --radius: 0.5rem;
+    /* Page background: #F3F5F7 very light gray */
+    --background: 0.967 0.004 247;
+    /* Cards: white */
+    --card: 1 0 0;
+    --card-foreground: 0.145 0.01 262;
+    --popover: 1 0 0;
+    --popover-foreground: 0.145 0.01 262;
+    /* Primary text: #111827 */
+    --foreground: 0.145 0.01 262;
+    /* Primary button: #1F6FDB blue */
+    --primary: 0.52 0.16 255;
+    --primary-foreground: 1 0 0;
+    /* Secondary: light gray */
+    --secondary: 0.94 0.005 247;
+    --secondary-foreground: 0.145 0.01 262;
+    /* Muted: #6B7280 */
+    --muted: 0.94 0.005 247;
+    --muted-foreground: 0.56 0.01 264;
+    /* Accent: nav active red #B23B3B */
+    --accent: 0.97 0.004 247;
+    --accent-foreground: 0.145 0.01 262;
+    /* Destructive: SOS red #E11D2E */
+    --destructive: 0.58 0.24 22;
+    --destructive-foreground: 1 0 0;
+    /* Border: #E6E9EE */
+    --border: 0.92 0.005 247;
+    --input: 0.92 0.005 247;
+    --ring: 0.52 0.16 255;
+    /* Custom tokens */
+    --nav-active: 0.47 0.13 22;
+    --sos-from: 0.22 0.1 15;
+    --sos-to: 0.14 0.07 15;
+    --sos-red: 0.58 0.24 22;
+    --success: 0.73 0.19 145;
+    --success-bg: 0.97 0.05 145;
+    --hero-overlay: rgba(0, 0, 0, 0.5);
+    --chart-1: 0.646 0.222 41.116;
+    --chart-2: 0.6 0.118 184.704;
+    --chart-3: 0.398 0.07 227.392;
+    --chart-4: 0.828 0.189 84.429;
+    --chart-5: 0.769 0.188 70.08;
+    --sidebar: 1 0 0;
+    --sidebar-foreground: 0.145 0.01 262;
+    --sidebar-primary: 0.52 0.16 255;
+    --sidebar-primary-foreground: 1 0 0;
+    --sidebar-accent: 0.94 0.005 247;
+    --sidebar-accent-foreground: 0.145 0.01 262;
+    --sidebar-border: 0.92 0.005 247;
+    --sidebar-ring: 0.52 0.16 255;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-family: "Inter", sans-serif;
+  }
+}
+
+@layer utilities {
+  .sos-gradient {
+    background: linear-gradient(
+      135deg,
+      oklch(var(--sos-from)) 0%,
+      oklch(var(--sos-to)) 100%
+    );
+  }
+
+  .sos-glow {
+    box-shadow: 0 0 24px 4px oklch(var(--sos-red) / 0.45), 0 2px 8px 0
+      rgba(0, 0, 0, 0.35);
+  }
+
+  .card-shadow {
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px
+      rgba(0, 0, 0, 0.04);
+  }
+}
